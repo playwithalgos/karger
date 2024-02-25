@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+    svg {
+        position: absolute;
+        cursor: none;
+        width: 640px;
+        height: 480px;
+    }
+
+    svg {
+        pointer-events: none;
+    }
+
+    #playground {
+        position: relative;
+    }
+
+
+
+    circle {
+        stroke: black;
+        stroke-width: 2px;
+
+    }
+
+    path {
+        stroke: black;
+        stroke-width: 1px;
+        fill: none;
+        transition: x1, y1, x2, y2 200ms linear;
+
+
+    }
+
+    * {
+        transition: all 200ms linear;
+    }
+
+    .highlight {
+        stroke-width: 6px;
+        stroke: black;
+    }
+</style>
+
+<body>
+    <h1>Karger's algorithm</h1>
+    <div id="playground">
+        <svg id="svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+        </svg>
+    </div>
+
+    <script>
+        const INTERVAL = 100;
+        const ECARTRANDOM = 12;
+        const ECART = 8;
+        const BEND = 10;
+
+        function d2(a, b) {
+            return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+        }
+
+        class Graph {
+            constructor(n) {
+                this.nodes = [];
+                this.edges = [];
+                this.classes = [];
+
+                function generateColor() {
+                    const r = Math.floor(255 * Math.random());
+                    const g = Math.floor(255 * Math.random());
+                    const b = Math.floor(255 * Math.random());
+
+                    if (r + g + b < 255)
+                        return generateColor();
+
+                    return `rgb(${r}, ${g}, ${b})`;
+
+                }
+                for (let i = 0; i < n; i++) {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', "circle");
+                    circle.style.fill = generateColor();
+                    const node = { x: 10 + Math.random() * 620, y: 10 + Math.random() * 460, svgElement: circle };
+                    if (this.nodes.every((no) => d2(no, node) > 755)) {
+                        this.nodes.push(node);
+                        svg.appendChild(circle);
+                    }
+                }
+
+                n = this.nodes.length;
+
+
+                function isSegmentCrossing(a, b, c, d) {
+                    function toTheRight(a, b, c) {
+                        return (c.x - a.x) * (b.y - a.y) + (c.y - a.y) * (a.x - b.x);
+                    }
+                    return toTheRight(a, b, c) * toTheRight(a, b, d) < 0 && (toTheRight(c, d, a) * toTheRight(c, d, b) < 0);
+                }
+
+                const isEdgesCrossing = (edge) => {
+                    for (const e of this.edges) {
+                        if (isSegmentCrossing(this.nodes[e.from], this.nodes[e.to], this.nodes[edge.from], this.nodes[edge.to]))
+                            return true;
+                    }
+                    return false;
+                }
+
+
+                for (let i = 0; i < this.nodes.length; i++)
+                    this.classes.push([i]);
+
+                for (let i = 0; i < this.nodes.length; i++)
+                    for (let j = i + 1; j < this.nodes.length; j++)
+                        if (d2(this.nodes[i], this.nodes[j]) < (640 / 3) ** 2) {
+                            if (!isEdgesCrossing({ from: i, to: j })) {
+                                this.addEdge(i, j);
+                            }
+                        }
+
+
+
+
+                this.update();
+            }
+
+            addEdge(from, to) {
+                const svgElement = document.createElementNS('http://www.w3.org/2000/svg', "path");
+                this.edges.push({ from, to, svgElement: svgElement, offset: BEND * Math.random() - BEND / 2 })
+                svg.prepend(svgElement);
+            }
+
+            sameClass(i, j) {
+                const ci = this.classes.findIndex((c) => c.indexOf(i) >= 0);
+                const cj = this.classes.findIndex((c) => c.indexOf(j) >= 0);
+                return ci == cj;
+            }
+            mergeNodes(i, j) {
+                let ci = this.classes.findIndex((c) => c.indexOf(i) >= 0);
+                const cj = this.classes.findIndex((c) => c.indexOf(j) >= 0);
+                this.classes[ci] = [...this.classes[ci], ...this.classes[cj]];
+                this.classes.splice(cj, 1);
+                if (cj < ci)
+                    ci--;
+                let m = { x: 0, y: 0 };
+                for (const inode of this.classes[ci]) {
+                    const node = this.nodes[inode];
+                    m.x += node.x;
+                    m.y += node.y;
+                }
+
+                m.x /= this.classes[ci].length;
+                m.y /= this.classes[ci].length;
+
+                for (const inode of this.classes[ci]) {
+                    const node = this.nodes[inode];
+                    node.x = m.x;
+                    node.y = m.y;
+
+                    function generateVector() {
+                        const v = { x: 2 * Math.random() - 1, y: 2 * Math.random() - 1 };
+                        const d = Math.sqrt(v.x ** 2 + v.y ** 2);
+
+                        const f = ECART * Math.random();
+
+                        v.x *= f / d;
+                        v.y *= f / d;
+
+                        return v;
+                    }
+                    const rv = generateVector();
+                    node.x += rv.x;
+                    node.y += rv.y;
+
+                    // node.x = m.x + 16 * Math.random() - 8;
+                    // node.y = m.y + 16 * Math.random() - 8;
+                }
+
+                this.edges = this.edges.filter((e) => {
+                    if (this.sameClass(e.from, e.to)) {
+                        e.svgElement.remove();
+                        return false;
+                    }
+                    else
+                        return true;
+                }
+                );
+
+                this.update();
+            }
+
+
+
+
+            update() {
+                for (const node of this.nodes) {
+                    const circle = node.svgElement;
+                    circle.setAttribute("cx", node.x + "");
+                    circle.setAttribute("cy", node.y + "");
+                    circle.setAttribute("r", 8);
+                }
+
+
+            }
+
+
+            updateEdges() {
+                function updateSVGElementPath(curveElement, p1, p2, offset) {
+
+                    // mid-point of line:
+                    var mpx = (p2.x + p1.x) * 0.5;
+                    var mpy = (p2.y + p1.y) * 0.5;
+
+                    // angle of perpendicular to line:
+                    var theta = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
+
+                    var c1x = mpx + offset * Math.cos(theta);
+                    var c1y = mpy + offset * Math.sin(theta);
+
+                    // construct the command to draw a quadratic curve
+                    const curve = "M" + p1.x + " " + p1.y + " Q " + c1x + " " + c1y + " " + p2.x + " " + p2.y;
+                    curveElement.setAttribute("d", curve);
+
+
+                }
+
+                const svgr = svg.getBoundingClientRect();
+
+                for (const edge of this.edges) {
+                    const svgElement = edge.svgElement;
+
+                    function getCenter(n) {
+                        const r = n.getBoundingClientRect();
+                        return { x: -svgr.left + (r.left + r.right) / 2, y: -svgr.top + (r.top + r.bottom) / 2 };
+                    }
+
+                    const n1 = getCenter(this.nodes[edge.from].svgElement);
+                    const n2 = getCenter(this.nodes[edge.to].svgElement);
+
+                    updateSVGElementPath(svgElement, n1, n2, edge.offset)
+
+                    /*  line.setAttribute("x1", n1.x + "");
+                      line.setAttribute("y1", n1.y + "");
+                      line.setAttribute("x2", n2.x + "");
+                      line.setAttribute("y2", n2.y + "");*/
+                }
+            }
+
+
+
+
+
+
+
+        }
+
+
+
+        let graph = new Graph(20);
+
+        let state = 0;
+        let edge = undefined;
+
+        function oneStep() {
+            if (graph.edges.length == 0)
+                return;
+            if (graph.classes.length > 2) {
+                if (state == 0) {
+                    const ie = Math.floor(graph.edges.length * Math.random());
+                    edge = graph.edges[ie];
+                    edge.svgElement.classList.add("highlight");
+                    state = 1;
+                }
+                else {
+                    graph.mergeNodes(edge.from, edge.to);
+                    state = 0;
+                }
+            }
+        }
+
+
+        setInterval(oneStep, INTERVAL)
+
+        setInterval(() => graph.updateEdges(), 10);
+    </script>
