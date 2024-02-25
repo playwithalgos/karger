@@ -21,13 +21,14 @@
 
     circle {
         stroke: black;
-        stroke-width: 2px;
-
+        stroke-width: 1.5px;
+        animation: tilt-n-move-shaking 1000ms infinite;
+        transform-origin: center;
     }
 
     path {
         stroke: black;
-        stroke-width: 1px;
+        stroke-width: 0.5px;
         fill: none;
         transition: x1, y1, x2, y2 200ms linear;
 
@@ -38,21 +39,44 @@
         transition: all 200ms linear;
     }
 
+
+    @keyframes tilt-n-move-shaking {
+        0% {
+            transform: translate(0, 0) rotate(0deg);
+        }
+
+        25% {
+            transform: translate(1px, 1px) rotate(1deg);
+        }
+
+        50% {
+            transform: translate(0, 0) rotate(0eg);
+        }
+
+        75% {
+            transform: translate(-1px, 1px) rotate(-1deg);
+        }
+
+        100% {
+            transform: translate(0, 0) rotate(0deg);
+        }
+    }
+
     .highlight {
-        stroke-width: 6px;
-        stroke: black;
+        animation: tilt-n-move-shaking 100ms infinite;
+        stroke: orange;
+        stroke-width: 4px;
     }
 </style>
 
 <body>
-    <h1>Karger's algorithm</h1>
     <div id="playground">
         <svg id="svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
         </svg>
     </div>
 
     <script>
-        const INTERVAL = 100;
+        const INTERVAL = 200;
         const ECARTRANDOM = 12;
         const ECART = 8;
         const BEND = 10;
@@ -72,7 +96,7 @@
                     const g = Math.floor(255 * Math.random());
                     const b = Math.floor(255 * Math.random());
 
-                    if (r + g + b < 255)
+                    if (r + g + b < 555)
                         return generateColor();
 
                     return `rgb(${r}, ${g}, ${b})`;
@@ -82,10 +106,13 @@
                     const circle = document.createElementNS('http://www.w3.org/2000/svg', "circle");
                     circle.style.fill = generateColor();
                     const node = { x: 10 + Math.random() * 620, y: 10 + Math.random() * 460, svgElement: circle };
-                    if (this.nodes.every((no) => d2(no, node) > 755)) {
+                    circle.style.animationDelay = "10000000ms";
+                    if (this.nodes.every((no) => d2(no, node) > 64 ** 2)) {
                         this.nodes.push(node);
                         svg.appendChild(circle);
                     }
+                    else
+                        i--;
                 }
 
                 n = this.nodes.length;
@@ -112,7 +139,7 @@
 
                 for (let i = 0; i < this.nodes.length; i++)
                     for (let j = i + 1; j < this.nodes.length; j++)
-                        if (d2(this.nodes[i], this.nodes[j]) < (640 / 3) ** 2) {
+                        if (d2(this.nodes[i], this.nodes[j]) < (640 / 4) ** 2) {
                             if (!isEdgesCrossing({ from: i, to: j })) {
                                 this.addEdge(i, j);
                             }
@@ -156,6 +183,9 @@
                     const node = this.nodes[inode];
                     node.x = m.x;
                     node.y = m.y;
+                    node.svgElement.style.transformOrigin = m.x + "px " + m.y + "px";
+                    node.svgElement.style.animationDelay = (500 * (this.nodes.length - this.classes[ci].length) / this.nodes.length + Math.random() * 500) + "ms";
+
 
                     function generateVector() {
                         const v = { x: 2 * Math.random() - 1, y: 2 * Math.random() - 1 };
@@ -256,7 +286,7 @@
 
 
 
-        let graph = new Graph(20);
+        let graph = new Graph(40);
 
         let state = 0;
         let edge = undefined;
