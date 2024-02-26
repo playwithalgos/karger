@@ -2,6 +2,9 @@
 <meta charset="utf-8">
 
 <style>
+    body {
+        background-color: black;
+    }
     svg {
         position: absolute;
         cursor: none;
@@ -20,14 +23,15 @@
 
 
     circle {
-        stroke: black;
-        stroke-width: 1.5px;
+        stroke: rgba(0.5, 0.5, 0.5, 0.5);
+        stroke-width: 3px;
         animation: tilt-n-move-shaking 1000ms infinite;
         transform-origin: center;
+        filter:drop-shadow(2px 2px black)
     }
 
     path {
-        stroke: black;
+        stroke: white;
         stroke-width: 0.5px;
         fill: none;
         transition: x1, y1, x2, y2 200ms linear;
@@ -76,40 +80,30 @@
     </div>
 
     <script>
-        const INTERVAL = 200;
+        const DELAYATBEGINNING = 2000;
+        const INTERVAL = 500;
         const ECARTRANDOM = 12;
-        const ECART = 8;
+        const ECART = 16;
         const BEND = 10;
+        const RADIUSNODE = 16;
 
         function d2(a, b) {
             return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
         }
 
         class Graph {
-            constructor(n) {
+            constructor() {
                 this.nodes = [];
                 this.edges = [];
                 this.classes = [];
+            }
 
-                function generateColor() {
-                    const r = Math.floor(255 * Math.random());
-                    const g = Math.floor(255 * Math.random());
-                    const b = Math.floor(255 * Math.random());
-
-                    if (r + g + b < 555)
-                        return generateColor();
-
-                    return `rgb(${r}, ${g}, ${b})`;
-
-                }
+            fillRandom(n) {
                 for (let i = 0; i < n; i++) {
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', "circle");
-                    circle.style.fill = generateColor();
-                    const node = { x: 10 + Math.random() * 620, y: 10 + Math.random() * 460, svgElement: circle };
-                    circle.style.animationDelay = "10000000ms";
+                    const node = { x: 10 + Math.random() * 620, y: 10 + Math.random() * 460 };
+
                     if (this.nodes.every((no) => d2(no, node) > 64 ** 2)) {
-                        this.nodes.push(node);
-                        svg.appendChild(circle);
+                        this.addNode(node);
                     }
                     else
                         i--;
@@ -134,8 +128,7 @@
                 }
 
 
-                for (let i = 0; i < this.nodes.length; i++)
-                    this.classes.push([i]);
+
 
                 for (let i = 0; i < this.nodes.length; i++)
                     for (let j = i + 1; j < this.nodes.length; j++)
@@ -145,10 +138,31 @@
                             }
                         }
 
-
-
-
                 this.update();
+            }
+
+
+            addNode(node) {
+                function generateColor() {
+                    const r = Math.floor(255 * Math.random());
+                    const g = Math.floor(255 * Math.random());
+                    const b = Math.floor(255 * Math.random());
+
+                    if (r + g + b < 555)
+                        return generateColor();
+
+                    return `rgb(${r}, ${g}, ${b})`;
+
+                }
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', "circle");
+                circle.style.fill = generateColor();
+                circle.style.animationDelay = "10000000ms";
+                node.svgElement = circle;
+                this.nodes.push(node);
+                svg.appendChild(circle);
+
+                this.classes.push([this.nodes.length - 1]);
             }
 
             addEdge(from, to) {
@@ -162,6 +176,7 @@
                 const cj = this.classes.findIndex((c) => c.indexOf(j) >= 0);
                 return ci == cj;
             }
+
             mergeNodes(i, j) {
                 let ci = this.classes.findIndex((c) => c.indexOf(i) >= 0);
                 const cj = this.classes.findIndex((c) => c.indexOf(j) >= 0);
@@ -227,7 +242,7 @@
                     const circle = node.svgElement;
                     circle.setAttribute("cx", node.x + "");
                     circle.setAttribute("cy", node.y + "");
-                    circle.setAttribute("r", 8);
+                    circle.setAttribute("r", RADIUSNODE);
                 }
 
 
@@ -285,8 +300,27 @@
         }
 
 
+        let graph = new Graph();
 
-        let graph = new Graph(40);
+        const R = 100;
+        for (let i = 0; i < 6; i++) {
+            const angle = 2 * Math.PI * i / 6;
+            graph.addNode({ x: 150 + R * Math.cos(angle), y: 200 +R * Math.sin(angle) });
+            for (let j = 0; j < i; j++)
+                graph.addEdge(i, j);
+        }
+        for (let i = 0; i < 6; i++) {
+            const angle = 2 * Math.PI * i / 6;
+            graph.addNode({ x: 480 + R * Math.cos(angle), y: 200 + R * Math.sin(angle) });
+            for (let j = 0; j < i; j++)
+                graph.addEdge(6 + i, 6 + j);
+        }
+
+        graph.addEdge(0, 8);
+        graph.addEdge(5, 10);
+
+        graph.update();
+        //    graph.fillRandom(40);
 
         let state = 0;
         let edge = undefined;
@@ -296,20 +330,22 @@
                 return;
             if (graph.classes.length > 2) {
                 if (state == 0) {
+                    new Audio("./select.ogg").play();
                     const ie = Math.floor(graph.edges.length * Math.random());
                     edge = graph.edges[ie];
                     edge.svgElement.classList.add("highlight");
                     state = 1;
                 }
                 else {
+                    new Audio("./merge.ogg").play();
                     graph.mergeNodes(edge.from, edge.to);
                     state = 0;
                 }
             }
         }
 
-
-        setInterval(oneStep, INTERVAL)
+        setTimeout(() =>
+            setInterval(oneStep, INTERVAL), DELAYATBEGINNING);
 
         setInterval(() => graph.updateEdges(), 10);
     </script>
